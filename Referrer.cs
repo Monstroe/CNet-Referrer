@@ -99,20 +99,24 @@ public class Referrer : IEventNetListener
     {
         Console.WriteLine("Client " + remoteEndPoint.TCPEndPoint.ToString() + " Disconnected: " + disconnect.DisconnectCode.ToString());
 
-        if (Clients[remoteEndPoint].CurrentRoom != null)
+        if (Clients.ContainsKey(remoteEndPoint))
         {
-            var client = Clients[remoteEndPoint];
-            if (client.IsHost)
+            if (Clients[remoteEndPoint].CurrentRoom != null)
             {
-                CloseRoom(client.CurrentRoom);
+                var client = Clients[remoteEndPoint];
+                if (client.IsHost)
+                {
+                    CloseRoom(client.CurrentRoom);
+                }
+                else
+                {
+                    LeaveRoom(client, client.CurrentRoom);
+                }
             }
-            else
-            {
-                LeaveRoom(client, client.CurrentRoom);
-            }
+
+            Clients.Remove(remoteEndPoint);
         }
 
-        Clients.Remove(remoteEndPoint);
         Console.WriteLine("Number of Clients Online: " + Clients.Count);
     }
 
@@ -205,6 +209,12 @@ public class Referrer : IEventNetListener
 
     static void Main(string[] args)
     {
+        if (args.Length != 2)
+        {
+            Console.Error.WriteLine("Usage: Referrer <address> <port>");
+            return;
+        }
+
         string address = args[0];
         if (int.TryParse(args[1], out int port))
         {
