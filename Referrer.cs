@@ -149,9 +149,16 @@ public class Referrer : IEventNetListener
         }
     }
 
-    public void OnNetworkError(NetEndPoint remoteEndPoint, SocketException socketException)
+    public void OnNetworkError(NetEndPoint? remoteEndPoint, SocketException socketException)
     {
-        Console.Error.WriteLine("Network Error: " + socketException.SocketErrorCode.ToString());
+        if (remoteEndPoint != null)
+        {
+            Console.Error.WriteLine("Network Error from " + remoteEndPoint.TCPEndPoint.ToString() + ": " + socketException.SocketErrorCode.ToString());
+        }
+        else
+        {
+            Console.Error.WriteLine("Network Error: " + socketException.SocketErrorCode.ToString());
+        }
     }
 
     public void Send(Client client, NetPacket packet, PacketProtocol protocol)
