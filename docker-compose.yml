@@ -1,0 +1,10 @@
+services:
+  app:
+    container_name: cnet-referrer
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - 7777:7777
+    command: ["127.0.0.1", "7777"] # Change this to your server's IP and port
