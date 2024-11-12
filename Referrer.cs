@@ -36,7 +36,6 @@ public class Referrer : IEventNetListener
         Listener = new NetListener();
         Listener.RegisterInterface(this);
 
-
         Clients = new Dictionary<NetEndPoint, Client>();
         Rooms = new Dictionary<int, Room>();
         packetHandlers = new Dictionary<ServiceReceiveType, PacketHandler>()
@@ -60,7 +59,7 @@ public class Referrer : IEventNetListener
         running = true;
         Console.WriteLine("Referrer Started, waiting for connections...");
 
-        while (running)
+        while (running && Console.In.Peek() == -1)
         {
             Listener.Update();
             Thread.Sleep(POLL_RATE);
@@ -97,7 +96,22 @@ public class Referrer : IEventNetListener
 
     public void OnClientDisconnected(NetEndPoint remoteEndPoint, NetDisconnect disconnect)
     {
-        Console.WriteLine("Client " + remoteEndPoint.TCPEndPoint.ToString() + " Disconnected: " + disconnect.DisconnectCode.ToString());
+        Console.Write("Client " + remoteEndPoint.TCPEndPoint.ToString() + " Disconnected: " + disconnect.DisconnectCode.ToString());
+        try
+        {
+            if (disconnect.DisconnectCode == DisconnectCode.ConnectionClosedWithMessage)
+            {
+                Console.WriteLine(" (" + disconnect.DisconnectData.ReadString() + ")");
+            }
+            else
+            {
+                Console.WriteLine();
+            }
+        }
+        catch (Exception e)
+        {
+            Console.Error.WriteLine("Error while reading disconnect data: " + e.Message);
+        }
 
         if (Clients.ContainsKey(remoteEndPoint))
         {
@@ -128,13 +142,31 @@ public class Referrer : IEventNetListener
             return;
         }
 
-        ServiceReceiveType command = (ServiceReceiveType)packet.ReadShort();
-        if (packetHandlers.TryGetValue(command, out PacketHandler? handler))
+        // Check if the packet is a command packet (they all start with 0)
+        if (packet.ReadShort() == -1)
         {
-            handler(Clients[remoteEndPoint], packet);
+            if (protocol == PacketProtocol.TCP)
+            {
+                ServiceReceiveType command = (ServiceReceiveType)packet.ReadShort();
+                if (packetHandlers.TryGetValue(command, out PacketHandler? handler))
+                {
+                    Console.WriteLine("Received Command: " + command.ToString() + " from " + remoteEndPoint.TCPEndPoint.ToString());
+                    handler(Clients[remoteEndPoint], packet);
+                }
+                else
+                {
+                    Console.Error.WriteLine("Invalid Command Received from " + remoteEndPoint.TCPEndPoint.ToString());
+                }
+            }
+            else
+            {
+                Console.Error.WriteLine("Client " + remoteEndPoint.TCPEndPoint.ToString() + " send command packet using UDP");
+            }
         }
         else
         {
+            packet.CurrentIndex -= 2;
+
             if (Clients[remoteEndPoint].CurrentRoom != null)
             {
                 if (Clients[remoteEndPoint].IsHost)
@@ -167,7 +199,20 @@ public class Referrer : IEventNetListener
 
     public void Send(Client client, NetPacket packet, PacketProtocol protocol)
     {
-        client.RemoteEP.Send(packet, protocol);
+        try
+        {
+            if (packet.ReadShort() == -1)
+            {
+                Console.WriteLine("Sending Command Packet to " + client.RemoteEP.TCPEndPoint.ToString() + " of type " + (ServiceSendType)packet.ReadShort(false));
+                packet.CurrentIndex -= 2;
+            }
+
+            client.RemoteEP.Send(packet, protocol);
+        }
+        catch (SocketException e)
+        {
+            Console.Error.WriteLine("Socket Exception While Sending: " + e.SocketErrorCode.ToString());
+        }
     }
 
     public void Send(List<Client> clients, NetPacket packet, PacketProtocol protocol)
@@ -209,21 +254,34 @@ public class Referrer : IEventNetListener
 
     static void Main(string[] args)
     {
-        if (args.Length != 2)
+        string address;
+        int port;
+
+        if (args.Length == 0)
+        {
+            Console.WriteLine("No arguments passed, using default values...");
+            address = "127.0.0.1";
+            port = 7777;
+        }
+        else if (args.Length == 2)
+        {
+            address = args[0];
+            if (int.TryParse(args[1], out port))
+            {
+                Console.WriteLine("Passed Address: " + address + ":" + port + "\n");
+            }
+            else
+            {
+                Console.Error.WriteLine("Invalid Port: " + args[1]);
+                return;
+            }
+        }
+        else
         {
             Console.Error.WriteLine("Usage: Referrer <address> <port>");
             return;
         }
 
-        string address = args[0];
-        if (int.TryParse(args[1], out int port))
-        {
-            Console.WriteLine("Passed Address: " + address + ":" + port + "\n");
-            Referrer.Instance.Start(address, port);
-        }
-        else
-        {
-            Console.Error.WriteLine("Invalid Port");
-        }
+        Referrer.Instance.Start(address, port);
     }
 }
