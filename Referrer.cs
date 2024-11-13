@@ -59,7 +59,7 @@ public class Referrer : IEventNetListener
         running = true;
         Console.WriteLine("Referrer Started, waiting for connections...");
 
-        while (running && Console.In.Peek() == -1)
+        while (running && (Console.IsOutputRedirected || !Console.KeyAvailable))
         {
             Listener.Update();
             Thread.Sleep(POLL_RATE);

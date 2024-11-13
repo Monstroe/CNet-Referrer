@@ -17,6 +17,7 @@ WORKDIR /app
 
 COPY --from=build /app/out .
 
-EXPOSE 7777
+EXPOSE 7777/tcp
+EXPOSE 7777/udp
 
 ENTRYPOINT ["dotnet", "CNet-Referrer.dll"]
