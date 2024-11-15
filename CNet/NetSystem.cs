@@ -724,6 +724,7 @@ namespace CNet
 
                     disconnect = true;
                 }
+                catch (ObjectDisposedException) { }
 
                 packetPool.Return(buffer);
             }
@@ -855,6 +856,7 @@ namespace CNet
                         ThrowErrorOnMainThread(null, ex);
                     }
                 }
+                catch (ObjectDisposedException) { }
                 packetPool.Return(buffer);
             }
         }
