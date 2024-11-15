@@ -227,6 +227,7 @@ public class Referrer : IEventNetListener
     {
         Console.WriteLine("Client " + client.RemoteEP.TCPEndPoint.ToString() + " left room with code: " + room.ID);
         PacketSender.Instance.MemberLeft(client, client.ID);
+        // ADD MEMBER LEFT TO ALL CLIENTS HERE
         room.Members.Remove(client);
     }
 
